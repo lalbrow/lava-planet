@@ -1,0 +1,9 @@
+clang-format
+cmake
+nco
+ncview
+libnetcdf-dev
+libpnetcdf-dev
+libboost-all-dev
+libeigen3-dev
+libgoogle-glog-dev

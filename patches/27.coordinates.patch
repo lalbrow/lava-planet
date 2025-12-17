@@ -1,0 +1,74 @@
+diff --git a/src/coordinates/coordinates.cpp b/src/coordinates/coordinates.cpp
+index e1018851..d69fa8f3 100644
+--- a/src/coordinates/coordinates.cpp
++++ b/src/coordinates/coordinates.cpp
+@@ -21,6 +21,10 @@
+ #include "../parameter_input.hpp"
+ #include "coordinates.hpp"
+ 
++#include <configure.hpp>
++#include <impl.hpp>
++#include <exo3/cubed_sphere.hpp>
++
+ //----------------------------------------------------------------------------------------
+ //! Coordinates constructor: sets coordinates and coordinate spacing of cell FACES
+ 
+@@ -57,6 +61,8 @@ Coordinates::Coordinates(MeshBlock *pmb, ParameterInput *pin, bool flag) :
+   x1f.NewAthenaArray(nc1+1);
+   x2f.NewAthenaArray(nc2+1);
+   x3f.NewAthenaArray(nc3+1);
++  m.NewAthenaArray(3, nc3, nc2, nc1);
++  m.ZeroClear();
+ 
+   // allocate arrays for volume- and face-centered geometry coefficients of cells
+   // (only for spherical-polar, cylindrical, cartesian coordinates, for now)
+@@ -207,10 +213,18 @@ Coordinates::Coordinates(MeshBlock *pmb, ParameterInput *pin, bool flag) :
+           noffset = static_cast<std::int64_t>((j-jl)*2 + lx2*block_size.nx2);
+         }
+         Real rx = ComputeMeshGeneratorX(noffset, nrootmesh, true);
++#ifdef CUBED_SPHERE
++        x2f(j) = CubedSphere::GenerateMeshX2(rx, pmy_block->loc);
++#else
+         x2f(j) = pm->MeshGenerator_[X2DIR](rx, mesh_size);
++#endif
+       }
++#ifdef CUBED_SPHERE
++      // Do nothing
++#else
+       x2f(jl) = block_size.x2min;
+       x2f(ju+1) = block_size.x2max;
++#endif
+ 
+       for (int j=jl-ng; j<=ju+ng; ++j) {
+         dx2f(j) = dx;
+@@ -288,10 +302,18 @@ Coordinates::Coordinates(MeshBlock *pmb, ParameterInput *pin, bool flag) :
+           noffset = static_cast<std::int64_t>((k-kl)*2 + lx3*block_size.nx3);
+         }
+         Real rx = ComputeMeshGeneratorX(noffset, nrootmesh, true);
++#ifdef CUBED_SPHERE
++        x3f(k) = CubedSphere::GenerateMeshX3(rx, pmy_block->loc);
++#else
+         x3f(k) = pm->MeshGenerator_[X3DIR](rx, mesh_size);
++#endif
+       }
++#ifdef CUBED_SPHERE
++      // Do nothing
++#else
+       x3f(kl) = block_size.x3min;
+       x3f(ku+1) = block_size.x3max;
++#endif
+ 
+       for (int k=kl-ng; k<=ku+ng; ++k) {
+         dx3f(k) = dx;
+diff --git a/src/coordinates/coordinates.hpp b/src/coordinates/coordinates.hpp
+index 5a00b13b..8df11926 100644
+--- a/src/coordinates/coordinates.hpp
++++ b/src/coordinates/coordinates.hpp
+@@ -45,6 +45,7 @@ class Coordinates {
+   // geometry coefficients (only used in SphericalPolar, Cylindrical, Cartesian)
+   AthenaArray<Real> h2f, dh2fd1, h31f, h32f, dh31fd1, dh32fd2;
+   AthenaArray<Real> h2v, dh2vd1, h31v, h32v, dh31vd1, dh32vd2;
++  AthenaArray<Real> m;  // cos(theta) between coordinate lines
+ 
+   // functions...
+   // ...to compute length of edges

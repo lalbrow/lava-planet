@@ -1,0 +1,16 @@
+# Large build outputs and runs
+lava-*/
+*.out
+*.err
+*.release
+
+# Optional: common junk
+*.o
+*.a
+*.so
+
+# Simulation / local-only directories
+sim_compare/
+test/
+test30/
+
