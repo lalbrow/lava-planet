@@ -3,7 +3,7 @@
 #SBATCH -p fdr
 #SBATCH -n 16
 #SBATCH --exclusive
-#SBATCH --time=90:00:00
+#SBATCH --time=150:00:00
 #SBATCH --mem=32G
 
 # === Parse argument ===
@@ -42,8 +42,8 @@ make -j 10
 
 cd bin
 
-mpirun --mca plm_rsh_agent false ./lava_planet.release -i lava_spherical.inp
-# mpirun -n 1 ./lava_planet.release -i lava_spherical.inp
+# mpirun --mca plm_rsh_agent false ./lava_planet.release -i lava_spherical.inp
+mpirun -n 16 ./lava_planet.release -i lava_spherical.inp
 ./combine.py -o test
 
 cd ../..

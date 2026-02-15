@@ -15,30 +15,30 @@ dt          = 900           # time increment between outputs
 <output2>
 file_type   = pnetcdf       # Netcdf format output
 variable    = prim          # variables to be output
-dt          = 900          # time increment between outputs
+dt          = 900           # time increment between outputs
 # dcycle = 1
 
 <output3>
 file_type   = pnetcdf       # Netcdf format output
 variable    = uov           # diagnostic variables
-dt          = 900          # time increment
+dt          = 900           # time increment
 # dcycle = 1
 
 <output4>
 file_type   = rst           # History data dump
-dt          = 100000         # time increment between outputs
+dt          = 100000        # time increment between outputs
 
 <time>
-cfl_number  = 0.2          # The Courant, Friedrichs, & Lewy (CFL) Number
+cfl_number  = 0.4           # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1            # cycle limit
-tlim        = 864000.       # time limit (10 days)
+tlim        = 3.E6          # time limit (~30 days #3.E6)
 xorder      = 1             # horizontal reconstruction order
 integrator  = rk3           # integration method
 
 
 <mesh>
 # r: radial shell
-nx1    = 40
+nx1    = 48
 x1min  = 6500.E3
 x1max  = 6900.E3
 ix1_bc = reflecting
@@ -46,27 +46,27 @@ ox1_bc = outflow
 
 # theta: full colatitude (0 → π)
 nx2    = 120
-x2min  = 0.17453292519943295
-x2max  = 2.9670597283903604
+x2min  = 0.
+x2max  = 3.14159
 ix2_bc = reflecting
 ox2_bc = reflecting
 
 # phi: full azimuth (0 → 2π)
 nx3    = 1
 x3min  = 0.
-x3max  = 6.28318530718
+x3max  = 0.5
 ix3_bc = periodic
 ox3_bc = periodic
 
 <meshblock>
-nx1 = 10
-nx2 = 30
+nx1 = 12
+nx2 = 40
 nx3 = 1
 
 <hydro>
-gamma      = 1.33    # unused
+gamma      = 1.29    
 implicit_flag = 0
-grav_acc1   = -2
+grav_acc1   = -9.8
 dfloor = 4.7733339292364615e-153
 pfloor = 4.7733339292364615e-153
 
@@ -74,6 +74,8 @@ pfloor = 4.7733339292364615e-153
 thermodynamics_config = lava_sio_only.yaml
 radius = 6500.E3
 massflux_CO2ratio = 0. # - injected mass ratio of CO2
+Tmax = 3000 # max surface temp
+Tmin = 400 # minimum nightside temp
 
 <initialcondition>
 SiO_ratio=1

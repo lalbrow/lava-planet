@@ -17,23 +17,13 @@
 // ========================
 // CONFIGURATION PARAMETERS
 // ========================
-
 // --- Physical constants for vapor ---
 const Real SiO_VAPOR_GAS_CONST       = 188.605;      // J/kg/K
 const Real SiO_VAPOR_ADIABATIC_INDEX = 1.4;
 
 // --- Vapor pressure relation constants ---
-// Saturation pressure
-// const Real SiO_ASAT = std::pow(10.0, 13.1);
-// const Real SiO_BSAT = 49520.0;
-// Chemical equilibrium pressure
 const Real SiO_AEQ  = std::pow(10.0, 14.086);
 const Real SiO_BEQ  = 70300.0;
-
-// --- Surface temperature parameters ---
-const Real SURF_TEMP_COEFF = 3000.0;  // scaling constant (Atemp)
-const Real SURF_TEMP_MIN   = 250.0;   // minimum temperature (Btemp)
-
 
 // ========================
 // END CONFIGURATION SECTION
@@ -41,12 +31,7 @@ const Real SURF_TEMP_MIN   = 250.0;   // minimum temperature (Btemp)
 
 
 // NOTES:
-// Add SiO chemistry, currently not implemented.
 // I don't know whether it is only using values from here or whether it is using the chemistry yaml.
-// Where is the forcing used? Yixiao's code seems to have it in this way so i think it's correct. 
-// Heating comes from the condensation so weird behaviour without. I've added condensates back.
-
-
 
 // ==========================================================
 // Globals
@@ -57,8 +42,9 @@ int iSiO, iSiOc, iCO2, iCO2c;
 Real x1min, x1max, x2min, x2max;
 Real massflux_CO2ratio;
 Real radius;
+Real Tmax, Tmin;
 
-const Real removal_rate_SiOc = 1e-2;
+const Real removal_rate_SiOc = 1e-3;
 
 
 // ==========================================================
@@ -141,7 +127,6 @@ Real surface_temperature(Real theta, Real tempcoeff, Real mintemp) {
   Real c = std::max(std::cos(theta), 0.);
   Real val = tempcoeff * std::pow(c, 0.25);
   return std::max(val, mintemp);
-  // return 3000;
 }
 
 
@@ -164,7 +149,7 @@ void BottomInjection(MeshBlock *pmb, Real const time, Real const dt,
       for (int j = pmb->js; j <= pmb->je; ++j) {
 
         Real t_surface = surface_temperature(pmb->pcoord->x2v(j),
-                                             SURF_TEMP_COEFF, SURF_TEMP_MIN);
+                                             Tmax, Tmin);
         Real t_air = pthermo->GetTemp(w.at(k, j, i));
 
         Real p_vapor = (w(IDN, k, j, i) * w(iSiO, k, j, i)
@@ -184,18 +169,21 @@ void BottomInjection(MeshBlock *pmb, Real const time, Real const dt,
         Real t_exchange = (drho > 0) ? t_surface : t_air;
 
         u(iSiO, k, j, i) += drhoSiO;
+        u(iSiOc, k, j, i) += drhoSiOc;
+
         u(IEN, k, j, i) += drhoSiO *
           ((pthermo->GetRd() * (
                 pthermo->GetCvRatio(iSiO)/ (pthermo->GetGammad() - 1.0)
                 + pthermo->GetInvMuRatio(iSiO))
            ) * t_exchange);
 
-        u(iSiOc, k, j, i) += drhoSiOc;
         u(IEN, k, j, i) += drhoSiOc *
           ((pthermo->GetRd() / (pthermo->GetGammad() - 1.0)) *
            t_exchange * pthermo->GetCvRatio(iSiOc));
 
+        // TODO - shouldn't this be + drho? why is it only co2, which is always 0 i think? density of only the dry comp
         u(IDN, k, j, i) += drhoCO2;
+  
         u(IEN, k, j, i) += drhoCO2 *
           ((pthermo->GetRd() * (
                 pthermo->GetCvRatio(0) / (pthermo->GetGammad() - 1.0))
@@ -207,6 +195,7 @@ void BottomInjection(MeshBlock *pmb, Real const time, Real const dt,
           Real u2 = pmb->phydro->w(IVY, k, j, i);
           Real u3 = pmb->phydro->w(IVZ, k, j, i);
           Real ke = 0.5 * (u1*u1 + u2*u2 + u3*u3);
+
 
           u(IEN, k, j, i) += drho * ke;
           u(IVX, k, j, i) += drho * u1;
@@ -249,47 +238,11 @@ void Mesh::InitUserMeshData(ParameterInput *pin) {
 
   massflux_CO2ratio = pin->GetReal("problem", "massflux_CO2ratio");
   radius = pin->GetReal("problem", "radius");
+  Tmin = pin->GetReal("problem", "Tmin");
+  Tmax = pin->GetReal("problem", "Tmax");
 
   EnrollUserExplicitSourceFunction(Forcing);
 }
-
-
-// ==========================================================
-// Problem Generator
-// ==========================================================
-// void MeshBlock::ProblemGenerator(ParameterInput *pin) {
-//   auto pthermo = Thermodynamics::GetInstance();
-
-//   std::vector<Real> yfrac(IVX, 0.);
-//   yfrac[0] = 1e-4;
-//   yfrac[iSiOc] = 0.;
-//   yfrac[iSiO] = 1. - yfrac[0] - yfrac[iSiOc];
-//   pthermo->SetMassFractions<Real>(yfrac.data());
-
-//   auto vapor_cond = VaporCondensation<Real>::SiOVaporCondensation();
-
-//   for (int k = ks; k <= ke; ++k)
-//     for (int j = js; j <= je; ++j)
-//       for (int i = is; i <= ie; ++i) {
-//         // Real t_surface = SURF_TEMP_COEFF;
-//         Real t_surface = surface_temperature(pcoord->x2v(j),
-//                                              SURF_TEMP_COEFF, SURF_TEMP_MIN);
-//         Real z = pcoord->x1v(i) - radius;
-//         Real p_surface = vapor_cond.p_eq(t_surface);
-//         Real pres = p_surface * std::exp(
-//           - (z * grav) / (vapor_cond.gas_constant * t_surface)
-//         );
-//         pthermo->EquilibrateTP(t_surface, pres);
-
-//         phydro->w(iSiO, k, j, i) = yfrac[iSiO];
-//         phydro->w(iSiOc, k, j, i) = yfrac[iSiOc];
-//         phydro->w(IDN, k, j, i) = pthermo->GetDensity();
-//         phydro->w(IPR, k, j, i) = pthermo->GetPres();
-//       }
-
-//   peos->PrimitiveToConserved(phydro->w, pfield->bcc, phydro->u,
-//                              pcoord, is, ie, js, je, ks, ke);
-// }
 
 
 void MeshBlock::ProblemGenerator(ParameterInput *pin) {
@@ -299,6 +252,8 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   const Real radius = pmy_mesh->mesh_size.x1min;
   const Real vapor_massfrac = pin->GetReal("initialcondition", "SiO_ratio");
   const Real solid_massfrac = pin->GetReal("initialcondition", "SiOc_ratio");
+  const Real Tmin = pin->GetReal("problem", "Tmin");
+  const Real Tmax = pin->GetReal("problem", "Tmax");
   
   auto vapor_cond = VaporCondensation<Real>::SiOVaporCondensation();
   
@@ -307,7 +262,7 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
       for (int i = is; i <= ie; ++i) {
         // Get spatially-varying surface temperature (latitude-dependent)
         Real t_surface = surface_temperature(pcoord->x2v(j),
-                                             SURF_TEMP_COEFF, SURF_TEMP_MIN);
+                                             Tmax, Tmin);
         
         // Calculate equilibrium surface pressure at this latitude
         Real p_surface = vapor_cond.p_eq(t_surface);
@@ -338,5 +293,3 @@ void MeshBlock::ProblemGenerator(ParameterInput *pin) {
   peos->PrimitiveToConserved(phydro->w, pfield->bcc, phydro->u,
                              pcoord, is, ie, js, je, ks, ke);
 }
-
-// reduce cfl,

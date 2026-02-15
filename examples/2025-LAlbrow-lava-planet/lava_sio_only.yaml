@@ -19,7 +19,7 @@ species:
       T0: 1975.
       cp0: 29.1 J/mol/K # i assume this is at T=298, from https://webbook.nist.gov/cgi/cbook.cgi?ID=C10097286&Units=SI&Mask=1&Type=JANAFG&Table=on 
 
-  - name: SiO(s)
+  - name: SiO(s) # solid SiO
     composition: {Si: 1, O: 1}
     thermo:
       model: constant-cp
@@ -33,4 +33,9 @@ species:
 reactions:
   - equation: SiO <=> SiO(s)
     type: nucleation
-    rate-constant: {formula: ideal, T3: 1975., P3: 1573.088083, beta: 25.0734177215, delta: 0, minT: 0.} # tbh chatgpt did this i don't know chemistry
+    rate-constant: {formula: ideal, 
+                    T3: 1975, 
+                    P3: 1573.088083, 
+                    beta: 25.0734177215, 
+                    delta: 0, 
+                    minT: 0.} # tbh chatgpt did this i don't know chemistry

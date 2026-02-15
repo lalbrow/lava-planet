@@ -90,6 +90,17 @@ void PnetcdfOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
     }
   }
 
+  // Read adiabatic index gamma from <hydro>
+float gamma;
+try {
+  gamma = pin->GetReal("hydro", "gamma");
+} catch (std::runtime_error &e) {
+  std::stringstream msg;
+  msg << "### FATAL ERROR in PnetcdfOutput::WriteOutputFile" << std::endl
+      << "Missing gamma in <hydro> block" << std::endl;
+  ATHENA_ERROR(msg);
+}
+
   // 1. open file for output
   int ifile;
   err = ncmpi_create(MPI_COMM_WORLD, fname.c_str(), NC_CLOBBER, MPI_INFO_NULL,
@@ -334,6 +345,11 @@ void PnetcdfOutput::WriteOutputFile(Mesh *pm, ParameterInput *pin, bool flag) {
                               &radius);
     ERR;
   }
+
+  err = ncmpi_put_att_float(ifile, NC_GLOBAL, "Gamma",
+                            NC_FLOAT, 1, &gamma);
+  ERR;
+
 
   err = ncmpi_enddef(ifile);
   ERR;

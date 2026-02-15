@@ -14,3 +14,5 @@ sim_compare/
 test/
 test30/
 
+.github/workflows/
+
