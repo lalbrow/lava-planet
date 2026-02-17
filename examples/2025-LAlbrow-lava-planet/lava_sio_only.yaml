@@ -1,3 +1,24 @@
+# =============================================================================
+# SiO condensation chemistry for 2D lava planet atmospheric simulation
+# Cantera 'ideal-moist' + 'condensation' kinetics
+#
+# REFERENCE VALUES FROM PAPER TABLE:
+#   mu    = 44 g/mol        (molecular weight, treated as CO2-equivalent)
+#   L     = 411.5 kJ/mol    (vaporization enthalpy, Fink & Leibowitz 1995)
+#   Cp    = 661 J/kg/K      (= 29.08 J/mol/K at mu=44 g/mol)
+#   Achem = 10^14.086 Pa    (chemical equilibrium pressure prefactor)
+#   Bchem = 70300 K         (chemical equilibrium pressure slope)
+#   Asat  = 10^13.1 Pa      (saturated vapor pressure prefactor, Bowles & Rosenblum 1965)
+#   Bsat  = 49520 K         (saturated vapor pressure slope, Bowles & Rosenblum 1965)
+#
+# SATURATION CURVE (used for nucleation): P_sat(T) = Asat * exp(-Bsat/T)
+# CHEMICAL EQUIL CURVE:                   P_eq(T)  = Achem * exp(-Bchem/T)
+#
+# DESIGN CHOICE: We use Asat/Bsat for the nucleation reaction, as this directly
+# parametrises the solid-gas phase boundary. This matches the approach of
+# Nguyen, Cowan, Ding et al. for direct 2D vs 1D comparison.
+# =============================================================================
+
 phases:
   - name: atm
     thermo: ideal-moist
@@ -5,37 +26,144 @@ phases:
     kinetics: condensation
 
 species:
+  # -----------------------------------------------------------------------
+  # 'dry': inert background gas (CO2 placeholder for non-condensable species)
+  #
+  # The atmosphere is treated as SiO-dominated with mu=44 g/mol (paper value).
+  # The 'dry' tracer carries the non-condensing mass. Its thermodynamic
+  # properties have low impact since it is a passive background in a
+  # SiO-dominated simulation, but we document the correct CO2 values here.
+  #
+  # CO2 NIST JANAF (Shomate, 1200-6000 K) at T~1975 K: Cp ~ 60.3 J/mol/K
+  # However, to remain consistent with the paper's single-gas approximation
+  # (mu=44, Cp=661 J/kg/K = 29.08 J/mol/K), we use the paper Cp.
+  # If you want physically correct CO2 background: use cp0: 60.3 J/mol/K
+  # -----------------------------------------------------------------------
   - name: dry
-    composition: {C: 1, O: 2}
+    composition: {C: 1, O: 2}   # CO2 (molar mass = 44.01 g/mol ≈ paper's 44)
     thermo:
       model: constant-cp
-      T0: 1975.
-      cp0: 29.1 J/mol/K # i'm assuming background is co2, https://webbook.nist.gov/cgi/cbook.cgi?ID=C124389&Mask=1&Type=JANAFG&Table=on
+      T0: 1975.                  # reference temperature [K]
+      cp0: 29.1 J/mol/K          # paper's Cp = 661 J/kg/K * 0.044 kg/mol = 29.08 J/mol/K
+      # NOTE: physical CO2 at 1975 K has Cp ~ 60.3 J/mol/K (NIST JANAF Shomate).
+      # Using 29.1 keeps us consistent with the paper's mu=44, Cp=661 J/kg/K assumption
+      # across all three species. Change to 60.3 J/mol/K if a CO2-accurate background
+      # is desired (will affect total Cp_atm if dry fraction is non-negligible).
 
+  # -----------------------------------------------------------------------
+  # SiO (gas): silicon monoxide vapour
+  #
+  # Molecular weight: 28.085 (Si) + 15.999 (O) = 44.084 g/mol
+  # Paper uses mu=44 g/mol (rounded), consistent with CO2 carrier.
+  #
+  # NIST JANAF Shomate (1100-6000 K), at T=1975 K:
+  #   Cp = 37.27 J/mol/K = 846 J/kg/K  (significantly higher than 29.1)
+  #   Cp at 298 K = 29.90 J/mol/K
+  #
+  # Paper uses Cp = 661 J/kg/K = 29.08 J/mol/K.
+  # This matches the 298 K JANAF value and is LOWER than the high-T value,
+  # but we keep it for consistency with previous 1D works being compared against.
+  #
+  # Standard enthalpy of formation (NIST JANAF, 298.15 K): -100.42 kJ/mol
+  # For the relative phase transition, only the DIFFERENCE h0(s) - h0(g) matters.
+  # Setting h0(g) = 0 here (as is conventional when h0(s) encodes the latent heat).
+  # -----------------------------------------------------------------------
   - name: SiO
     composition: {Si: 1, O: 1}
     thermo:
       model: constant-cp
-      T0: 1975.
-      cp0: 29.1 J/mol/K # i assume this is at T=298, from https://webbook.nist.gov/cgi/cbook.cgi?ID=C10097286&Units=SI&Mask=1&Type=JANAFG&Table=on 
+      T0: 1975.                  # condensation reference temperature [K]
+                                 # = sublimation T of SiO at P_sat(1975K)=162 Pa
+      cp0: 29.1 J/mol/K          # = 661 J/kg/K * 0.044 kg/mol (paper value)
+                                 # JANAF at 1975K gives 37.27 J/mol/K; using
+                                 # paper value for 1D model comparability.
+      h0: 0. kJ/mol              # set to zero; enthalpy reference carried by SiO(s)
 
-  - name: SiO(s) # solid SiO
+  # -----------------------------------------------------------------------
+  # SiO(s): condensed (solid) silicon monoxide
+  #
+  # In reality amorphous SiO(s) is metastable and disproportionates
+  # (SiO(s) -> Si + SiO2) above ~1000°C, but the paper assumes pure SiO
+  # condensation for simplicity and 1D comparability.
+  #
+  # h0: encodes the latent heat of condensation/sublimation L.
+  # For the reaction SiO(g) <=> SiO(s), setting h0(g)=0:
+  #   h0(s) = h0(g) - L = -L
+  # where L is the enthalpy of vaporization (solid -> gas), positive.
+  # Paper L = 411.5 kJ/mol (Fink & Leibowitz 1995).
+  # Cross-check: -Bsat * R = -49520 * 8.314 = -411.709 kJ/mol ≈ paper value ✓
+  #
+  # cp0: solid SiO has no JANAF table (disproportionates).
+  # Dulong-Petit estimate (2 atoms): cp0 = 6R = 49.9 J/mol/K.
+  # We use 49.9 J/mol/K. Note this mainly affects energy balance of the
+  # condensed phase; the gas dynamics are controlled by the gas-phase Cp.
+  # (If you need exact 1D comparability, some papers implicitly assume the
+  # solid has negligible heat capacity relative to the gas; adjust if needed.)
+  #
+  # Molar volume: SiO(s) density ≈ 2.13 g/cm^3 (amorphous, Goodfellow).
+  #   Vm = 44.084 g/mol / 2.13 g/cm^3 = 20.70 cm^3/mol
+  # -----------------------------------------------------------------------
+  - name: SiO(s)
     composition: {Si: 1, O: 1}
     thermo:
       model: constant-cp
-      T0: 1975. # melting point from wikipedia
-      cp0: 29.1 J/mol/K # todo
-      h0: -411.732 kJ/mol  # this comes from h0 = - (beta - delta) * R * T0
+      T0: 1975.                  # reference temperature [K], same as condensation T
+      cp0: 49.9 J/mol/K          # Dulong-Petit: 6R for 2-atom solid [J/mol/K]
+                                 # (previous value 29.1 was the gas-phase Cp, incorrect)
+      h0: -411.5 kJ/mol          # = -L_vaporization (Fink & Leibowitz 1995)
+                                 # formula: h0 = -beta * R * T0 = -Bsat * R
+                                 #        = -49520 K * 8.314 J/mol/K = -411.71 kJ/mol
+                                 # Using paper's rounded 411.5 kJ/mol for consistency.
     equation-of-state:
       model: constant-volume
-      molar-volume: 0.0 cm^3/mol # incompressible
+      molar-volume: 20.70 cm^3/mol  # = Mw/rho = 44.084/2.13 cm^3/mol (amorphous SiO(s))
+                                    # Previous value was 0.0 cm^3/mol (unphysical).
+
+# =============================================================================
+# NUCLEATION REACTION: SiO(g) <=> SiO(s)
+#
+# Rate constant uses the 'ideal' formula (Cantera condensation kinetics):
+#   K_eq(T) = (P3 / p_gas) * exp(beta * (1 - T3/T))
+#
+# This recovers the Clausius-Clapeyron saturation vapor pressure:
+#   P_sat(T) = P3 * exp(beta * (1 - T3/T))
+#            = [P3 * exp(beta)] * exp(-beta*T3/T)
+#            = Asat * exp(-Bsat/T)     when P3 = Asat*exp(-Bsat/T3)
+#
+# Parameters are derived EXCLUSIVELY from the saturation vapor pressure
+# (Bowles & Rosenblum 1965) via Asat=10^13.1 Pa, Bsat=49520 K:
+#
+#   T3   = 1975 K        (condensation reference T; vapor P at this T is P3)
+#   beta = Bsat / T3     = 49520 / 1975 = 25.0734...  (dimensionless slope)
+#   P3   = Asat * exp(-Bsat/T3)
+#        = 10^13.1 * exp(-49520/1975) = 162.46 Pa
+#   delta = 0            (no Cp difference correction in simplified model)
+#   minT  = 0.           (allow condensation at any T < T3)
+#
+# CORRECTION FROM PREVIOUS VERSION:
+#   Old P3 = 1573.088 Pa = Achem * exp(-Bsat/T3), which MIXED the chemical
+#   equilibrium prefactor (Achem=10^14.086) with the saturation slope (Bsat).
+#   This was internally inconsistent. Fixed to use Asat consistently.
+#
+# NOTE on Bchem/Achem: These parametrize the chemical equilibrium vapor pressure
+# (accounting for reactions with other species, e.g. SiO2, Si). They are NOT
+# used for this pure-SiO condensation nucleation. They are reserved for a future
+# more complete chemistry model.
+# =============================================================================
 
 reactions:
   - equation: SiO <=> SiO(s)
     type: nucleation
-    rate-constant: {formula: ideal, 
-                    T3: 1975, 
-                    P3: 1573.088083, 
-                    beta: 25.0734177215, 
-                    delta: 0, 
-                    minT: 0.} # tbh chatgpt did this i don't know chemistry
+    rate-constant:
+      formula: ideal
+      T3: 1975.                  # condensation reference temperature [K]
+      P3: 162.46                 # = Asat * exp(-Bsat/T3) [Pa]
+                                 # = 10^13.1 * exp(-49520/1975) = 162.46 Pa
+                                 # (corrected from 1573.088 Pa which incorrectly
+                                 #  used Achem instead of Asat)
+      beta: 25.0734177215        # = Bsat / T3 = 49520 / 1975 (dimensionless)
+                                 # This is the Clausius-Clapeyron slope parameter.
+      delta: 0.                  # cp(s) - cp(g) in units of R; 0 = simplified model
+                                 # (non-zero delta would correct for Cp difference
+                                 #  across the phase transition)
+      minT: 0.                   # allow nucleation at any temperature below T3

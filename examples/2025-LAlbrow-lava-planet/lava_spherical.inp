@@ -29,9 +29,9 @@ file_type   = rst           # History data dump
 dt          = 100000        # time increment between outputs
 
 <time>
-cfl_number  = 0.4           # The Courant, Friedrichs, & Lewy (CFL) Number
+cfl_number  = 0.05           # The Courant, Friedrichs, & Lewy (CFL) Number
 nlim        = -1            # cycle limit
-tlim        = 3.E6          # time limit (~30 days #3.E6)
+tlim        = 3.E5          # time limit (~30 days #3.E6)
 xorder      = 1             # horizontal reconstruction order
 integrator  = rk3           # integration method
 
@@ -60,11 +60,11 @@ ox3_bc = periodic
 
 <meshblock>
 nx1 = 12
-nx2 = 40
+nx2 = 30
 nx3 = 1
 
 <hydro>
-gamma      = 1.29    
+gamma      = 1.4  
 implicit_flag = 0
 grav_acc1   = -9.8
 dfloor = 4.7733339292364615e-153
