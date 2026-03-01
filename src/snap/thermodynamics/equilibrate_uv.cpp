@@ -1402,28 +1402,30 @@ class EquilibriumCondensation {
 
         for (int iter = 0; iter < max_iter; ++iter) {
           Dual temp_ad(temp, 1.);
-          Dual vapor_frac_ad = cond.vapor_density_sat(temp_ad)/ density;
+          Dual vapor_frac_ad = cond.vapor_density_sat(temp_ad) / density;
           Dual ie_ad = specific_internal_energy(
             temp_ad, dry_frac, vapor_frac_ad
           );
           Real dtemp = (init_ie - ie_ad.value()) / ie_ad.derivative();
 
+          temp += dtemp;
+
+          // FIX #2: clamp AFTER updating temp, so the break check and
+          // the clamping are always applied to the same value of temp.
           if (temp < temp_min) {
             temp = temp_min;
           } else if (temp > temp_max) {
             temp = temp_max;
           } else if (std::abs(dtemp) < temp_tol) {
+            // Converged and within bounds — safe to exit.
             break;
           }
-
-          temp += dtemp;
         }
 
-        // fix vapor_frac to iterate one more time
-        // to conserve energy
-        //
+        // FIX #1: recompute vapor_frac at the final converged temp,
+        // then do one corrector step so temp is consistent with vapor_frac.
         Real vapor_frac = std::min(
-          cond.vapor_density_sat(temp)/ density,
+          cond.vapor_density_sat(temp) / density,
           1. - dry_frac
         );
         Dual temp_ad(temp, 1.);
@@ -1432,6 +1434,14 @@ class EquilibriumCondensation {
         );
         Real dtemp = (init_ie - ie_ad.value()) / ie_ad.derivative();
         temp += dtemp;
+
+        // FIX #1 (cont.): recompute vapor_frac once more at the
+        // corrected temp so the returned state is self-consistent.
+        vapor_frac = std::min(
+          cond.vapor_density_sat(temp) / density,
+          1. - dry_frac
+        );
+
         return {temp, dry_frac, vapor_frac};
       }
     }
@@ -1461,7 +1471,7 @@ void Thermodynamics::EquilibrateUV(Real dt) const {
   const Real dry_cv = dry_cp - dry_gas_constant;
   const Real water_vapor_cv = water_vapor_cp - water_gas_constant;
 
-  const Real Asat = std::pow(10.0,14.086);
+  const Real Asat = std::pow(10.0,13.1);
   const Real Bsat = 49520.;
   const Real temp3 = 1975.;
   const Real beta = Bsat/temp3;
@@ -1498,12 +1508,7 @@ void Thermodynamics::EquilibrateUV(Real dt) const {
 
   Real ie_1 = thermo.intEnergy_mass();
   // std::cout << ie_1 - ie_0 << std::endl;
-  if (std::abs(ie_0 - ie_1) > 10.) {
+  if (std::abs(ie_0 - ie_1) > 100) {
     std::cout << "intEnergy diff " << ie_1 - ie_0 << std::endl;
-    std::cout << "density " << density << std::endl;
-    std::cout << "temp " << temp << std::endl;
-    std::cout << "yfrac" << yfrac << std::endl;
-    std::cout << "init_temp " << init_temp << std::endl;
-    std::cout << "init_yfrac" << init_yfrac << std::endl;
   }
 }

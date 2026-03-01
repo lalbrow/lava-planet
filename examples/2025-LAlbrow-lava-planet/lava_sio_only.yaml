@@ -77,7 +77,7 @@ species:
       cp0: 29.1 J/mol/K          # = 661 J/kg/K * 0.044 kg/mol (paper value)
                                  # JANAF at 1975K gives 37.27 J/mol/K; using
                                  # paper value for 1D model comparability.
-      h0: 0. kJ/mol              # set to zero; enthalpy reference carried by SiO(s)
+      # h0: 0. kJ/mol              # set to zero; enthalpy reference carried by SiO(s)
 
   # -----------------------------------------------------------------------
   # SiO(s): condensed (solid) silicon monoxide
@@ -108,23 +108,24 @@ species:
     thermo:
       model: constant-cp
       T0: 1975.                  # reference temperature [K], same as condensation T
-      cp0: 49.9 J/mol/K          # Dulong-Petit: 6R for 2-atom solid [J/mol/K]
-                                 # (previous value 29.1 was the gas-phase Cp, incorrect)
-      h0: -411.5 kJ/mol          # = -L_vaporization (Fink & Leibowitz 1995)
+      cp0: 29.1 J/mol/K          # Dulong-Petit: 6R for 2-atom solid [J/mol/K] (49.9 J/mol/K)
+                                 # have set it to 29.1 J/mol/K to match the gas Cp for consistency with paper's single-gas approximation
+      h0: -411.7 kJ/mol          # = -L_vaporization (Fink & Leibowitz 1995)
                                  # formula: h0 = -beta * R * T0 = -Bsat * R
                                  #        = -49520 K * 8.314 J/mol/K = -411.71 kJ/mol
                                  # Using paper's rounded 411.5 kJ/mol for consistency.
     equation-of-state:
       model: constant-volume
-      molar-volume: 20.70 cm^3/mol  # = Mw/rho = 44.084/2.13 cm^3/mol (amorphous SiO(s))
+      molar-volume: 0 # 20.70 cm^3/mol  # = Mw/rho = 44.084/2.13 cm^3/mol (amorphous SiO(s))
                                     # Previous value was 0.0 cm^3/mol (unphysical).
+                                    # We're keeping it at 0.0 for now, otherwise relationship between latent heat and b_sat is modified
 
 # =============================================================================
 # NUCLEATION REACTION: SiO(g) <=> SiO(s)
 #
 # Rate constant uses the 'ideal' formula (Cantera condensation kinetics):
 #   K_eq(T) = (P3 / p_gas) * exp(beta * (1 - T3/T))
-#
+#\
 # This recovers the Clausius-Clapeyron saturation vapor pressure:
 #   P_sat(T) = P3 * exp(beta * (1 - T3/T))
 #            = [P3 * exp(beta)] * exp(-beta*T3/T)

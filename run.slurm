@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=lava_planet
-#SBATCH -p fdr
+#SBATCH -p edr
 #SBATCH -n 16
 #SBATCH --exclusive
-#SBATCH --time=150:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH --mem=32G
 
 # === Parse argument ===
@@ -42,9 +42,8 @@ make -j 10
 
 cd bin
 
-# mpirun --mca plm_rsh_agent false ./lava_planet.release -i lava_spherical.inp
-mpirun -n 16 ./lava_planet.release -i lava_spherical.inp
-./combine.py -o test
+mpirun -n 16 ./lava_planet.release -i ${BUILD_NAME}.inp
+./combine.py -o combined
 
 cd ../..
-python analyse_sph.py ${BUILD_NAME}/bin/lava_planet-test-main.nc
+python analyse_2d_sim.py ${BUILD_NAME}/bin/lava_planet-combined-main.nc
