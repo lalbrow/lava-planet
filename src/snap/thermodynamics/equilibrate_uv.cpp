@@ -1506,6 +1506,42 @@ void Thermodynamics::EquilibrateUV(Real dt) const {
   thermo.setMassFractions(yfrac.data());
   thermo.setTemperature(temp);
 
+  // FIX #3: The custom model uses cv*T as reference (zero at T=0), while
+  // Cantera adds per-species formation-enthalpy offsets C_k.  When
+  // condensation changes the composition by ΔY_k, the Cantera energy drifts
+  // by Σ ΔY_k*C_k even though the custom model conserved its own energy.
+  // Because C_k are constants, d(e_cantera)/dT == d(e_custom)/dT, so the
+  // custom AD Jacobian is valid for correcting toward ie_0_cantera.
+//   {
+//     bool condensing = (yfrac(2) > 1e-12);
+//     typedef adcpp::fwd::Number<Real> Dual;
+//     for (int corr = 0; corr < 10; ++corr) {
+//       Real ie_err = ie_0 - thermo.intEnergy_mass();
+//       if (std::abs(ie_err) < 1.0) break;
+
+//       Real dT;
+//       if (condensing) {
+//         Dual T_ad(temp, 1.);
+//         Dual vf_ad = water_ice.vapor_density_sat(T_ad) / density;
+//         Dual ie_ad = eq.specific_internal_energy(T_ad, yfrac(0), vf_ad);
+//         dT = ie_err / ie_ad.derivative();
+//       } else {
+//         dT = ie_err / thermo.cv_mass();
+//       }
+
+//       temp += dT;
+//       if (condensing) {
+//         Real vf = std::min(water_ice.vapor_density_sat(temp) / density,
+//                            1. - yfrac(0));
+//         yfrac(1) = vf;
+//         yfrac(2) = 1. - yfrac(0) - vf;
+//       }
+//       thermo.setMassFractions(yfrac.data());
+//       thermo.setTemperature(temp);
+//       if (std::abs(dT) < 1e-3) break;
+//     }
+//   }
+
   Real ie_1 = thermo.intEnergy_mass();
   // std::cout << ie_1 - ie_0 << std::endl;
   if (std::abs(ie_0 - ie_1) > 100) {
