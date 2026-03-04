@@ -1,0 +1,83 @@
+<comment>
+problem   = Moist rising bubble test
+reference = Bryan and Fritsch, 2002
+configure = --prob=lava_planet --flux=lmars --nvapor=2 --nphase=2 --nghost=3 --coord=spherical_polar -pnetcdf -mpi 
+
+<job>
+problem_id  = lava_planet        # problem ID: basename of output filenames
+tasklist    = ImplicitHydroTasks
+
+<output1>
+file_type   = hst           # History data dump
+dt          = 900           # time increment between outputs
+# dcycle = 1
+
+<output2>
+file_type   = pnetcdf       # Netcdf format output
+variable    = prim          # variables to be output
+dt          = 900           # time increment between outputs
+# dcycle = 1
+
+<output3>
+file_type   = pnetcdf       # Netcdf format output
+variable    = uov           # diagnostic variables
+dt          = 900           # time increment
+# dcycle = 1
+
+<output4>
+file_type   = rst           # History data dump
+dt          = 604800        # time increment between outputs
+
+<time>
+cfl_number  = 0.05          # The Courant, Friedrichs, & Lewy (CFL) Number
+nlim        = -1            # cycle limit
+tlim        = 3.E5          # time limit (~30 days #3.E6)
+xorder      = 1             # horizontal reconstruction order
+integrator  = rk3           # integration method
+
+
+<mesh>
+# r: radial shell
+nx1    = 256
+x1min  = 6500.E3
+x1max  = 6900.E3
+ix1_bc = reflecting
+ox1_bc = outflow
+
+# theta: full colatitude (0 → π)
+nx2    = 1024
+x2min  = 0.
+x2max  = 3.14159
+ix2_bc = reflecting
+ox2_bc = reflecting
+
+# phi: full azimuth (0 → 2π)
+nx3    = 1
+x3min  = 0.
+x3max  = 0.5
+ix3_bc = periodic
+ox3_bc = periodic
+
+<meshblock>
+nx1 = 64
+nx2 = 256
+nx3 = 1
+
+<hydro>
+gamma      = 1.4  
+implicit_flag = 0
+grav_acc1   = -9.8
+dfloor = 4.7733339292364615e-153
+pfloor = 4.7733339292364615e-153
+
+<problem>
+thermodynamics_config = lava_sio_only.yaml
+radius = 6500.E3
+massflux_CO2ratio = 0. # - injected mass ratio of CO2
+Tmax = 3000 # max surface temp
+Tmin = 400 # minimum nightside temp
+
+<initialcondition>
+SiO_ratio=1
+SiOc_ratio=0.
+CO2ratio=0.
